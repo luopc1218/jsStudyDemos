@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <style>
+    #container {
+      width: 900px;
+      line-height: 7px;
+    }
+
+    .cell {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: gray;
+      margin: 0 1px 1px 0;
+    }
+
+    .cell-active {
+      background-color: #000;
+    }
+
+    .cell-used {
+      background-color: lightcoral;
+    }
+
+    .cell-path {
+      background-color: lightblue;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+  <button onclick="save()">save</button>
+  <button onclick="reset()">reset</button>
+  <button onclick="start()">start</button>
+</body>
+<script>
+  class Sorted {
+    constructor(data, compare) {
+      this.data = data;
+      this.compare = compare;
+    }
+    take() {
+      if (!this.data.length) {
+        return;
+      }
+      let min = this.data[0];
+      let minIndex = 0;
+      for (let i = 0; i < this.data.length; i++) {
+        if (this.compare(this.data[i], min) < 0) {
+          min = this.data[i];
+          minIndex = i;
+        }
+      }
+      this.data[minIndex] = this.data[this.data.length - 1];
+      this.data.pop();
+      return min;
+    }
+    insert(v) {
+      this.data.push(v);
+    }
+    get length() {
+      return this.data.length;
+    }
+  }
+
+  function sleep(s) {
+    return new Promise((reslove) => {
+      setTimeout(() => {
+        reslove();
+      }, s);
+    });
+  }
+  let mouseDown = false;
+  const container = document.getElementById('container');
+  document.addEventListener('mousedown', () => {
+    mouseDown = true;
+  });
+  document.addEventListener('mouseup', () => {
+    mouseDown = false;
+  });
+  let map = JSON.parse(localStorage.getItem('map')) || Array(10000).fill(0);
+  function initMap() {
+    for (let x = 0; x < 100; x++) {
+      for (let y = 0; y < 100; y++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        if (map[x * 100 + y] === 1) {
+          cell.classList.add('cell-active');
+        }
+        cell.addEventListener('mousemove', () => {
+          if (mouseDown) {
+            cell.classList.add('cell-active');
+            map[x * 100 + y] = 1;
+          }
+        });
+        container.appendChild(cell);
+      }
+    }
+  }
+  initMap();
+  function save() {
+    localStorage.setItem('map', JSON.stringify(map));
+  }
+  function reset() {
+    map = new Array(10000).fill(0);
+    container.innerHTML = '';
+    initMap();
+  }
+  function refind() { }
+  async function findPath(map, start, end) {
+    map = map.slice();
+    function distance([x, y]) {
+      return (x - end[0]) ** 2 + (y - end[1]) ** 2;
+    }
+    let collection = new Sorted([start], (a, b) => distance(a) - distance(b));
+    // let stack = [start];
+    async function insert([x, y], pre) {
+      if (map[x * 100 + y] !== 0 || x < 0 || y < 0 || x >= 100 || y >= 100) {
+        return;
+      } else {
+        map[x * 100 + y] = pre;
+        container.children[x * 100 + y].classList.add('cell-used');
+        collection.insert([x, y]);
+        await sleep(1);
+      }
+    }
+    while (collection.length) {
+      let [x, y] = collection.take();
+      if (x === end[0] && y === end[1]) {
+        // 生成路径
+        let path = [];
+        while (x !== start[0] || y !== start[1]) {
+          path.push([x, y]);
+          container.children[x * 100 + y].classList.add('cell-path');
+          [x, y] = map[x * 100 + y];
+        }
+        return path;
+        // alert('寻路结束');
+
+        // return true;
+      }
+      await insert([x - 1, y], [x, y]);
+      await insert([x + 1, y], [x, y]);
+      await insert([x, y - 1], [x, y]);
+      await insert([x, y + 1], [x, y]);
+      await insert([x - 1, y - 1], [x, y]);
+      await insert([x + 1, y + 1], [x, y]);
+      await insert([x + 1, y - 1], [x, y]);
+      await insert([x - 1, y + 1], [x, y]);
+    }
+    alert('寻路失败');
+    return false;
+  }
+  function start() {
+    findPath(map, [0, 0], [99, 99]);
+  }
+</script>
+
+</html>
